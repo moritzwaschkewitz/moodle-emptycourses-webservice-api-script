@@ -39,7 +39,7 @@ class MoodleCourseUserManager:
         if self.__debug:
             print(*args, **kwargs)
 
-    def load_cached_courses(self) -> list:
+    def load_cached_courses(self) -> list[dict]:
         """
         Load courses from local json-file.
 
@@ -50,7 +50,7 @@ class MoodleCourseUserManager:
             f"Last modified: {self._get_file_modification_time(self.__courses_file)}")
         return self._load_json(self.__courses_file)
 
-    def load_cached_course_users(self) -> dict:
+    def load_cached_course_users(self) -> dict[int, list]:
         """Load all cached course users from local directory."""
         cached_course_users = {}
         if not self.__courses_dir.exists():
@@ -71,7 +71,7 @@ class MoodleCourseUserManager:
 
         return {int(course['id']): course for course in all_courses_list}
 
-    def load_or_download_course_users(self) -> dict:
+    def load_or_download_course_users(self) -> dict[int, list]:
         """
         Load course user data from cache if available,
         otherwise fetch from Moodle and save locally.
