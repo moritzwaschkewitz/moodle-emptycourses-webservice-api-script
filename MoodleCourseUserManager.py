@@ -3,8 +3,6 @@ from pathlib import Path
 from datetime import datetime
 
 from py_moodle import MoodleSession
-from py_moodle.cli import courses
-from py_moodle.course import list_courses
 from py_moodle.user import list_course_users
 
 
@@ -47,7 +45,9 @@ class MoodleCourseUserManager:
 
         TODO: handling if courses.json is not cached locally
         """
-        self._debug_print(f"Loading all courses from {self.__courses_file}. Last modified: {self._get_file_modification_time(self.__courses_file)}")
+        self._debug_print(
+            f"Loading all courses from {self.__courses_file}. "
+            f"Last modified: {self._get_file_modification_time(self.__courses_file)}")
         return self._load_json(self.__courses_file)
 
     def load_cached_course_users(self) -> dict:
@@ -58,7 +58,9 @@ class MoodleCourseUserManager:
 
         for file in self.__courses_dir.glob("*.json"):
             if file.is_file():
-                self._debug_print(f"Loading course from {file.name}. Last modified: {self._get_file_modification_time(file)}")
+                self._debug_print(
+                    f"Loading course from {file.name}. "
+                    f"Last modified: {self._get_file_modification_time(file)}")
                 cached_course_users[int(file.stem)] = self._load_json(file)
         return cached_course_users
 
@@ -83,10 +85,10 @@ class MoodleCourseUserManager:
 
             self._debug_print(f"Downloading course {course_id}...")
             users = list_course_users(
-                session     = self.__moodle_session.session,
-                base_url    = self.__moodle_session.settings.url,
-                token       = self.__moodle_session.token,
-                course_id   = course_id,
+                session=self.__moodle_session.session,
+                base_url=self.__moodle_session.settings.url,
+                token=self.__moodle_session.token,
+                course_id=course_id,
             )
             cached_course_users[course_id] = users
             self._save_json(self.__courses_dir / f"{course_id}.json", users)
