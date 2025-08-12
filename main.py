@@ -14,25 +14,22 @@ def main():
     save_course(PE2_TUT_ID, pe2_tut_users)
     '''
 
-    PE2_TUT_ID = 10979
+    PE2_TUT_ID = '10979'
 
     manager = MoodleCourseUserManager(debug=True)
-    course_users = manager.load_or_download_course_users()
-    all_courses = manager.load_cached_courses()
+    course_users = manager.all_course_users
+    all_courses = manager.all_courses
 
     '''
     for course in all_courses:
         print(course["id"], course["fullname"])
     '''
 
-    with open(f"course_users/{PE2_TUT_ID}.json", "r") as users_file:
-        pe2_tut_users = json.loads(users_file.read())
-
-    pe2_tut_course = [c for c in all_courses if c['id'] == PE2_TUT_ID][0]
+    pe2_tut_course = all_courses[PE2_TUT_ID]
 
     pprint(pe2_tut_course)
 
-    print(f"Eingeschriebene Nutzer/innen in PE2-TUT: {len(pe2_tut_users)}")
+    print(f"Eingeschriebene Nutzer/innen in PE2-TUT: {len(course_users[PE2_TUT_ID])}")
 
 
 if __name__ == "__main__":

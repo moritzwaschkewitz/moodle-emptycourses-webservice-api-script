@@ -3,15 +3,23 @@ from pathlib import Path
 from datetime import datetime
 
 from py_moodle import MoodleSession
+from py_moodle.course import list_courses
 from py_moodle.user import list_course_users
 
 
 class MoodleCourseUserManager:
     def __init__(self, courses_file=Path("courses.json"), courses_dir=Path("./course_users"), debug=False):
-        self.__courses_file = courses_file
-        self.__courses_dir = courses_dir
-        self.__debug = debug
         self.__moodle_session = MoodleSession.get()
+        self.__debug = debug
+
+        self.all_courses = self.__load_or_download_courses(courses_file)
+        self.all_course_users = self.__load_or_download_course_users(courses_dir)
+
+    def get_all_courses(self):
+        return self.all_courses
+
+    def get_all_course_users(self):
+        return self.all_course_users
 
     @staticmethod
     def _save_json(file_path: Path, data) -> None:
@@ -39,55 +47,56 @@ class MoodleCourseUserManager:
         if self.__debug:
             print(*args, **kwargs)
 
-    def load_cached_courses(self) -> list[dict]:
+    def __load_or_download_courses(self, file_path: Path) -> dict[str, dict]:
         """
-        Load courses from local json-file.
+        Load overview of all courses from cache if available,
+        otherwise fetch from Moodle and save locally.
 
-        TODO: handling if courses.json is not cached locally
+        Requires self.__moodle_session and self.__debug = debug
         """
-        self._debug_print(
-            f"Loading all courses from {self.__courses_file}. "
-            f"Last modified: {self._get_file_modification_time(self.__courses_file)}")
-        return self._load_json(self.__courses_file)
+        if not file_path.exists():
+            self._debug_print("Downloading overview of all courses...")
+            all_courses_list = list_courses(
+                session=self.__moodle_session.session,
+                base_url=self.__moodle_session.settings.url,
+                token=self.__moodle_session.token
+            )
+            all_courses_dict = {course['id']: course for course in all_courses_list}
+            self._save_json(file_path, all_courses_dict)
+        else:
+            self._debug_print(
+                f"Loading all courses from {file_path}. "
+                f"Last modified: {self._get_file_modification_time(file_path)}")
+            all_courses_dict = self._load_json(file_path)
 
-    def load_cached_course_users(self) -> dict[int, list]:
-        """Load all cached course users from local directory."""
-        cached_course_users = {}
-        if not self.__courses_dir.exists():
-            return cached_course_users
+        return all_courses_dict
 
-        for file in self.__courses_dir.glob("*.json"):
-            if file.is_file():
-                self._debug_print(
-                    f"Loading course from {file.name}. "
-                    f"Last modified: {self._get_file_modification_time(file)}")
-                cached_course_users[int(file.stem)] = self._load_json(file)
-        return cached_course_users
-
-    def _convert_courses_list_to_dict(self, all_courses_list: list[dict]) -> dict[int, dict]:
-        """"
-        Converts the provided courses-list into a dictionary with the id as key
-        """
-
-        return {int(course['id']): course for course in all_courses_list}
-
-    def load_or_download_course_users(self) -> dict[int, list]:
+    def __load_or_download_course_users(self, directory_path: Path) -> dict[str, list]:
         """
         Load course user data from cache if available,
         otherwise fetch from Moodle and save locally.
 
-        TODO: download courses.json if not cached locally.
+        Requires self.all_courses, self.__moodle_session and self.__debug = debug
         """
-        all_courses = self.load_cached_courses()
-        cached_course_users = self.load_cached_course_users()
 
-        self._debug_print(f"Number of all courses: {len(all_courses)}")
-        self._debug_print(f"Number of cached courses: {len(cached_course_users)}")
+        """ Reading cached course_users """
+        all_course_users = {}
+        if not directory_path.exists():
+            return all_course_users
 
-        for course in all_courses:
-            course_id = course['id']
+        for file in directory_path.glob("*.json"):
+            if file.is_file():
+                self._debug_print(
+                    f"Loading course from {file.name}. "
+                    f"Last modified: {self._get_file_modification_time(file)}")
+                all_course_users[file.stem] = self._load_json(file)
 
-            if course_id in cached_course_users:
+        self._debug_print(f"Number of all courses: {len(self.all_courses)}")
+        self._debug_print(f"Number of cached courses: {len(all_course_users)}")
+
+        """ Download missing course_users """
+        for course_id, course in self.all_courses.items():
+            if course_id in all_course_users.keys():
                 continue
 
             self._debug_print(f"Downloading course {course_id}...")
@@ -97,7 +106,7 @@ class MoodleCourseUserManager:
                 token=self.__moodle_session.token,
                 course_id=course_id,
             )
-            cached_course_users[course_id] = users
-            self._save_json(self.__courses_dir / f"{course_id}.json", users)
+            all_course_users[course_id] = users
+            self._save_json(directory_path / f"{course_id}.json", users)
 
-        return cached_course_users
+        return all_course_users
