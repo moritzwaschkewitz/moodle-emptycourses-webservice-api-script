@@ -64,6 +64,13 @@ class MoodleCourseUserManager:
                 cached_course_users[int(file.stem)] = self._load_json(file)
         return cached_course_users
 
+    def _convert_courses_list_to_dict(self, all_courses_list: list[dict]) -> dict[int, dict]:
+        """"
+        Converts the provided courses-list into a dictionary with the id as key
+        """
+
+        return {int(course['id']): course for course in all_courses_list}
+
     def load_or_download_course_users(self) -> dict:
         """
         Load course user data from cache if available,
