@@ -12,13 +12,13 @@ class MoodleCourseUserManager:
         self.__moodle_session = MoodleSession.get()
         self.__debug = debug
 
-        self.all_courses = self.__load_or_download_courses(courses_file)
-        self.all_course_users = self.__load_or_download_course_users(courses_dir)
+        self.all_courses = self.__fetch_courses_with_cache(courses_file)
+        self.all_course_users = self.__fetch_course_users_with_cache(courses_dir)
 
-    def get_all_courses(self):
+    def get_all_courses(self) -> dict[str, dict]:
         return self.all_courses
 
-    def get_all_course_users(self):
+    def get_all_course_users(self) -> dict[str, list]:
         return self.all_course_users
 
     @staticmethod
@@ -36,18 +36,14 @@ class MoodleCourseUserManager:
 
     @staticmethod
     def _get_file_modification_time(file_path: Path) -> datetime:
-        """
-        Return the last modification datetime of a file.
-
-        Uses Windows-function -> NO UNIX SUPPORTED!
-        """
+        """ Return the last modification datetime of a file. """
         return datetime.fromtimestamp(file_path.stat().st_mtime)
 
     def _debug_print(self, *args, **kwargs):
         if self.__debug:
             print(*args, **kwargs)
 
-    def __load_or_download_courses(self, file_path: Path) -> dict[str, dict]:
+    def __fetch_courses_with_cache(self, file_path: Path) -> dict[str, dict]:
         """
         Load overview of all courses from cache if available,
         otherwise fetch from Moodle and save locally.
@@ -71,7 +67,7 @@ class MoodleCourseUserManager:
 
         return all_courses_dict
 
-    def __load_or_download_course_users(self, directory_path: Path) -> dict[str, list]:
+    def __fetch_course_users_with_cache(self, directory_path: Path) -> dict[str, list]:
         """
         Load course user data from cache if available,
         otherwise fetch from Moodle and save locally.
@@ -79,24 +75,21 @@ class MoodleCourseUserManager:
         Requires self.all_courses, self.__moodle_session and self.__debug = debug
         """
 
-        """ Reading cached course_users """
         all_course_users = {}
-        if not directory_path.exists():
-            return all_course_users
-
-        for file in directory_path.glob("*.json"):
-            if file.is_file():
-                self._debug_print(
-                    f"Loading course from {file.name}. "
-                    f"Last modified: {self._get_file_modification_time(file)}")
-                all_course_users[file.stem] = self._load_json(file)
+        if directory_path.exists():
+            for file in directory_path.glob("*.json"):
+                if file.is_file():
+                    self._debug_print(
+                        f"Loading course from {file.name}. "
+                        f"Last modified: {self._get_file_modification_time(file)}")
+                    all_course_users[file.stem] = self._load_json(file)
 
         self._debug_print(f"Number of all courses: {len(self.all_courses)}")
         self._debug_print(f"Number of cached courses: {len(all_course_users)}")
 
         """ Download missing course_users """
         for course_id, course in self.all_courses.items():
-            if course_id in all_course_users.keys():
+            if course_id in all_course_users:
                 continue
 
             self._debug_print(f"Downloading course {course_id}...")
