@@ -16,6 +16,8 @@ def find_empty_courses(course_users: dict[str, list], all_courses: dict[str, dic
 
 
 """ ok for empty courses, since these are the only timestamps available """
+
+
 def sort_courses_by_timemodified(courses: dict[str, dict]) -> list[dict]:
     return sorted(courses.values(), key=lambda course: course['timemodified'])
 
@@ -30,6 +32,11 @@ def add_readable_dates_to_courses(courses: list[dict]) -> None:
             value = course.get(key)
             if isinstance(value, int):
                 course[f"{key}_human"] = datetime.fromtimestamp(course[key]).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def add_url_to_courses(courses: list[dict], base_url: str = "https://moodle.hsnr.de/course/view.php?id=") -> None:
+    for course in courses:
+        course["url"] = f"{base_url}{course['id']}"
 
 
 def export_courses_to_csv(courses: list[dict], file_path: Path, fieldnames: list[str]) -> None:
@@ -63,13 +70,15 @@ def main():
 
     sorted_empty_courses = sort_courses_by_timemodified(empty_courses)
     add_readable_dates_to_courses(sorted_empty_courses)
+    add_url_to_courses(sorted_empty_courses)
     pprint(sorted_empty_courses[-1])
 
     export_courses_to_csv(sorted_empty_courses, 'empty.csv', fieldnames=[
         'id', 'fullname', 'shortname',
         'startdate', 'startdate_human',
         'timecreated', 'timecreated_human',
-        'timemodified', 'timemodified_human'])
+        'timemodified', 'timemodified_human',
+        'url'])
 
     pprint(f"Anzahl leerer Kurse: {len(sorted_empty_courses)}")
 
