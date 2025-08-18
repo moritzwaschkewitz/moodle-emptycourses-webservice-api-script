@@ -21,8 +21,8 @@ cd moodlecourseusermanager
 pip install python-moodle
 ```
 
->[!important]
->Benötigt wird eine funktionierende MoodleSession (via `py_moodle`): [siehe python-moodle-GitHub](https://github.com/erseco/python-moodle?tab=readme-ov-file#configure-your-environment)
+> [!important]
+> Benötigt wird eine funktionierende MoodleSession (via `py_moodle`): [siehe python-moodle-GitHub](https://github.com/erseco/python-moodle?tab=readme-ov-file#configure-your-environment)
 
 ## MoodleCourseUserManager-Klasse
 
@@ -42,7 +42,7 @@ Hilfmethoden des Konstruktors um Attribute zu laden:
 - `__fetch_course_users_with_cache(directory_path) -> dict[str, list]` - Lädt Nutzer:innen aus Cache oder Moodle
 
 ### Caching Hinweise
->[!note]
+> [!note]
 > Während der Entwicklung werden Daten **lokal in JSON-Dateien gespeichert.**
 > Produktivbetrieb sollte direkt über die Moodle-API laufen und **nicht benötigte Daten direkt verwerfen.**
 
