@@ -237,25 +237,15 @@ flowchart TD
 sequenceDiagram
     participant main
     participant Manager as MoodleCourseUserManager
-    participant Moodle as Moodle API
     participant File as JSON Cache
+    participant Moodle as Moodle API
 
-    main->>Manager: init(debug=True)
-    Manager->>File: load courses.json?
-    alt cache vorhanden
-        Manager->>Manager: _load_json()
-    else kein cache
-        Manager->>Moodle: list_courses()
-        Manager->>File: save courses.json
-    end
-
-    Manager->>File: load course_users/*.json?
-    alt teilweise vorhanden
-        Manager->>Manager: _load_json()
-        Manager->>Moodle: list_course_users() (nur fehlende)
-        Manager->>File: save *.json
-    end
-
-    main->>Manager: all_courses / all_course_users
+    main->>Manager: __init
+    Manager->>File: Cache lesen: courses.json & course_users/*.json
+    File-->>Manager:
+    Manager->>Moodle: fehlende Kurse und Nutzer:innen laden
+    Moodle-->>Manager:
+    Manager->>File: neue Kurse und Nutzer:innen speichern
+    Manager-->>main: all_courses, all_course_users
     main->>main: Analyse (leer, sortieren, URLs, CSV-Export)
 ```
