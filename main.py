@@ -15,9 +15,7 @@ def find_empty_courses(course_users: dict[str, list], all_courses: dict[str, dic
     }
 
 
-""" ok for empty courses, since these are the only timestamps available """
-
-
+#for empty courses, since these are the only timestamps available
 def sort_courses_by_timemodified(courses: dict[str, dict]) -> list[dict]:
     return sorted(courses.values(), key=lambda course: course['timemodified'])
 
@@ -46,24 +44,26 @@ def export_courses_to_csv(courses: list[dict], file_path: Path, fieldnames: list
         writer.writerows(courses)
 
 
-def main():
-    PE2_TUT_ID = '10979'
+# TODO exclude certain categories (Sprachenzentrum & Weiterbildung)
+def collect_categoryids(courses: dict[str, dict]) -> set:
+    category_ids = set()
+    for course in courses.values():
+        category_ids.add(course['categoryid'])
+    return category_ids
 
+
+def main():
     manager = MoodleCourseUserManager(debug=True)
     course_users = manager.all_course_users
     all_courses = manager.all_courses
 
-    '''
-    for course in all_courses:
-        print(course["id"], course["fullname"])
-    '''
-
+    """
+    PE2_TUT_ID = '10979'
     pe2_tut_course = all_courses[PE2_TUT_ID]
     add_readable_dates_to_courses([pe2_tut_course])
-
     pprint(pe2_tut_course)
-
     print(f"Eingeschriebene Nutzer/innen in PE2-TUT: {len(course_users[PE2_TUT_ID])}")
+    """
 
     empty_courses = find_empty_courses(course_users, all_courses)
     # pprint(empty_courses)
@@ -80,7 +80,7 @@ def main():
         'timemodified', 'timemodified_human',
         'url'])
 
-    pprint(f"Anzahl leerer Kurse: {len(sorted_empty_courses)}")
+    print(f"Anzahl leerer Kurse: {len(sorted_empty_courses)}")
 
 
 if __name__ == "__main__":
