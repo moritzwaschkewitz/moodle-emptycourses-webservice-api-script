@@ -237,15 +237,15 @@ flowchart TD
 sequenceDiagram
     participant main
     participant Manager as MoodleCourseUserManager
-    participant File as JSON Cache
-    participant Moodle as Moodle API
+    participant File as JSON_Cache
+    participant Moodle as Moodle_API
 
     main->>Manager: __init
-    Manager->>File: Cache lesen: courses.json & course_users/*.json
-    File-->>Manager:
-    Manager->>Moodle: fehlende Kurse und Nutzer:innen laden
-    Moodle-->>Manager:
-    Manager->>File: neue Kurse und Nutzer:innen speichern
+    Manager->>File: Cache lesen - courses.json & course_users/*.json
+    File-->>Manager: 
+    Manager->>Moodle: fehlende Kurse und Nutzer_innen laden
+    Moodle-->>Manager: 
+    Manager->>File: neue Kurse und Nutzer_innen speichern
     Manager-->>main: all_courses, all_course_users
     main->>main: Analyse (leer, sortieren, URLs, CSV-Export)
 ```
