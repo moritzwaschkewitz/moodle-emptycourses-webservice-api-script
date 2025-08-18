@@ -4,6 +4,31 @@ Dieses Projekt ist ein **Proof of Concept** zur Analyse von Moodle-Kursen und ei
 Es lädt Kursdaten und Nutzer:innen entweder aus einem lokalen Cache (JSON-Dateien) oder direkt über die Moodle-WebService-API. <br>
 :warning: **HINWEIS:** Der lokale Cache dient nur Entwicklungs- und Testzwecken und ist langfristig **nicht gewollt**.
 
+## Inhalte
+
+<!-- TOC -->
+* [Moodle Course User Manager (Proof of Concept)](#moodle-course-user-manager-proof-of-concept)
+  * [Inhalte](#inhalte)
+  * [Projektüberblick](#projektüberblick)
+  * [Installation & Vorraussetzungen](#installation--vorraussetzungen)
+  * [MoodleCourseUserManager-Klasse](#moodlecourseusermanager-klasse)
+    * [Attribute](#attribute)
+    * [Methoden](#methoden)
+    * [Caching Hinweise](#caching-hinweise)
+  * [Main-Skript (main.py)](#main-skript-mainpy)
+    * [Helferfunktionen](#helferfunktionen)
+    * [Beispiel-Ablauf](#beispiel-ablauf)
+    * [Export](#export)
+  * [Beispiel Datenstrukturen](#beispiel-datenstrukturen)
+    * [Kurse](#kurse)
+    * [Kursnutzer:innen](#kursnutzerinnen)
+    * [CSV-Export](#csv-export)
+  * [Diagramme](#diagramme)
+  * [Klassendiagramm](#klassendiagramm)
+    * [Datenflussdiagramm](#datenflussdiagramm)
+    * [Programmfluss](#programmfluss)
+<!-- TOC -->
+
 ## Projektüberblick
 Dieses PoC ermöglicht:
 - Abruf aller Moodle-Kurse (per API und lokalem Cache).
