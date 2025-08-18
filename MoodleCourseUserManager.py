@@ -8,6 +8,11 @@ from py_moodle.user import list_course_users
 
 
 class MoodleCourseUserManager:
+    """
+    Manages moodle courses and enlisted user for each course.
+
+    ATTENTION: stores sensitive data locally in JSON files!
+    """
     def __init__(self, courses_file=Path("courses.json"), courses_dir=Path("./course_users"), debug=False):
         self.__moodle_session = MoodleSession.get()
         self.__debug = debug
@@ -23,20 +28,17 @@ class MoodleCourseUserManager:
 
     @staticmethod
     def _save_json(file_path: Path, data) -> None:
-        """Save data as pretty-printed JSON."""
         file_path.parent.mkdir(parents=True, exist_ok=True)
         with file_path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     @staticmethod
     def _load_json(file_path: Path):
-        """Load JSON from a file."""
         with file_path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
     @staticmethod
     def _get_file_modification_time(file_path: Path) -> datetime:
-        """ Return the last modification datetime of a file. """
         return datetime.fromtimestamp(file_path.stat().st_mtime)
 
     def _debug_print(self, *args, **kwargs):
@@ -48,7 +50,7 @@ class MoodleCourseUserManager:
         Load overview of all courses from cache if available,
         otherwise fetch from Moodle and save locally.
 
-        Requires self.__moodle_session and self.__debug = debug
+        Requires self.__moodle_session and self.__debug
         """
         if not file_path.exists():
             self._debug_print("Downloading overview of all courses...")
@@ -72,7 +74,7 @@ class MoodleCourseUserManager:
         Load course user data from cache if available,
         otherwise fetch from Moodle and save locally.
 
-        Requires self.all_courses, self.__moodle_session and self.__debug = debug
+        Requires self.all_courses, self.__moodle_session and self.__debug
         """
 
         all_course_users = {}
