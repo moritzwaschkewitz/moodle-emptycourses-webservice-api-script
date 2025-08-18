@@ -24,7 +24,7 @@ Es lädt Kursdaten und Nutzer:innen entweder aus einem lokalen Cache (JSON-Datei
     * [Kursnutzer:innen](#kursnutzerinnen)
     * [CSV-Export](#csv-export)
   * [Diagramme](#diagramme)
-  * [Klassendiagramm](#klassendiagramm)
+    * [Klassendiagramm](#klassendiagramm)
     * [Datenflussdiagramm](#datenflussdiagramm)
     * [Programmfluss](#programmfluss)
 <!-- TOC -->
@@ -223,7 +223,7 @@ id,fullname,shortname,startdate,startdate_human,timecreated,timecreated_human,ti
 ```
 
 ## Diagramme
-## Klassendiagramm
+### Klassendiagramm
 ```mermaid
 classDiagram
     class MoodleCourseUserManager {
