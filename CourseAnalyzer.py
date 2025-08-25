@@ -134,7 +134,7 @@ class CourseAnalyzer:
         and constructs a dictionary
 
         :return:    Dictionary where each key is a category ID,
-                    and the value is another dictionary containing the name and supercategory ID.
+                    and the value is another dictionary containing the `name` and `supercategory` ID.
         :raises RuntimeError: If a supercategory cannot be determined from the path string
         """
         all_categories = list_categories(
