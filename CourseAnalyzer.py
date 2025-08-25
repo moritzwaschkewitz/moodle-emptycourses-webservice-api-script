@@ -107,6 +107,12 @@ class CourseAnalyzer:
 
     @staticmethod
     def __extract_supercategory(path: str) -> int | None:
+        """
+        :param path: The category path string, expected in the format
+                        "supercategory_id/subcategory_id/...".
+        :return: The integer ID of the supercategory if successfully
+                    extracted; otherwise, None.
+        """
         if not isinstance(path, str):
             logging.warning(f"Path is not a string: {path}")
             return None
@@ -120,6 +126,17 @@ class CourseAnalyzer:
         return int(parts[0])
 
     def __fetch_supercategory_lookup(self) -> dict[str, dict]:
+        """
+        Build a lookup dictionary of all Moodle categories with their names
+        and supercategory IDs.
+
+        This method retrieves all categories via the `py_moodle.category.list_categories` function
+        and constructs a dictionary
+
+        :return:    Dictionary where each key is a category ID,
+                    and the value is another dictionary containing the name and supercategory ID.
+        :raises RuntimeError: If a supercategory cannot be determined from the path string
+        """
         all_categories = list_categories(
             session=self.__moodle_session.session,
             base_url=self.__moodle_session.settings.url,
@@ -132,11 +149,11 @@ class CourseAnalyzer:
             category_id = category['id']
             category_lookup[category_id] = {'name': category['name']}
             if category['parent'] == 0:
-                category_lookup[category_id]['supercategory'] = 0
+                category_lookup[category_id]['supercategory'] = category_id
             else:
                 supercategory_id = CourseAnalyzer.__extract_supercategory(category['path'])
                 if supercategory_id is None:
-                    raise Exception(f"Supercategory could not be found: {category['path']}")
+                    raise RuntimeError(f"Supercategory could not be found: {category['path']}")
                 category_lookup[category_id]['supercategory'] = supercategory_id
 
         return category_lookup
