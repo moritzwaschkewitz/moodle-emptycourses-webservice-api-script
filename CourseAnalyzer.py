@@ -7,7 +7,7 @@ from py_moodle.course import list_courses
 from py_moodle.user import list_course_users
 
 
-class MoodleCourseUserManager:
+class CourseAnalyzer:
     """
     Manages moodle courses and enlisted user for each course.
 
