@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime
 
 from py_moodle import MoodleSession
+from py_moodle.category import list_categories
 from py_moodle.course import list_courses
 from py_moodle.user import list_course_users
 
@@ -103,3 +104,39 @@ class CourseAnalyzer:
             self._save_json(directory_path / f"{course_id}.json", users)
 
         return all_course_users
+
+    @staticmethod
+    def __extract_supercategory(path: str) -> int | None:
+        if not isinstance(path, str):
+            logging.warning(f"Path is not a string: {path}")
+            return None
+        parts = path.split("/")
+        if not parts:
+            logging.warning(f"Path could not be split: {path}")
+            return None
+        if not parts[0].isdigit():
+            logging.warning(f"Supercategory is not a number: {path}")
+            return None
+        return int(parts[0])
+
+    def __fetch_supercategory_lookup(self) -> dict[str, dict]:
+        all_categories = list_categories(
+            session=self.__moodle_session.session,
+            base_url=self.__moodle_session.settings.url,
+            token=self.__moodle_session.token
+        )
+
+        category_lookup = {}
+
+        for category in all_categories:
+            category_id = category['id']
+            category_lookup[category_id] = {'name': category['name']}
+            if category['parent'] == 0:
+                category_lookup[category_id]['supercategory'] = 0
+            else:
+                supercategory_id = CourseAnalyzer.__extract_supercategory(category['path'])
+                if supercategory_id is None:
+                    raise Exception(f"Supercategory could not be found: {category['path']}")
+                category_lookup[category_id]['supercategory'] = supercategory_id
+
+        return category_lookup
