@@ -120,10 +120,10 @@ class CourseAnalyzer:
         if not parts:
             logging.warning(f"Path could not be split: {path}")
             return None
-        if not parts[0].isdigit():
+        if not parts[1].isdigit():
             logging.warning(f"Supercategory is not a number: {path}")
             return None
-        return int(parts[0])
+        return int(parts[1])
 
     def __fetch_supercategory_lookup(self) -> dict[str, dict]:
         """
