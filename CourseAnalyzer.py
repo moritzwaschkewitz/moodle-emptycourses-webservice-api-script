@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
 
@@ -15,7 +16,8 @@ class CourseAnalyzer:
     """
     def __init__(self, courses_file=Path("courses.json"), courses_dir=Path("./course_users"), debug=False):
         self.__moodle_session = MoodleSession.get()
-        self.__debug = debug
+        self.__logger = logging.getLogger(self.__class__.__name__)
+        logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
 
         self.all_courses = self.__fetch_courses_with_cache(courses_file)
         self.all_course_users = self.__fetch_course_users_with_cache(courses_dir)
@@ -41,10 +43,6 @@ class CourseAnalyzer:
     def _get_file_modification_time(file_path: Path) -> datetime:
         return datetime.fromtimestamp(file_path.stat().st_mtime)
 
-    def _debug_print(self, *args, **kwargs):
-        if self.__debug:
-            print(*args, **kwargs)
-
     def __fetch_courses_with_cache(self, file_path: Path) -> dict[str, dict]:
         """
         Load overview of all courses from cache if available,
@@ -53,7 +51,7 @@ class CourseAnalyzer:
         Requires self.__moodle_session and self.__debug
         """
         if not file_path.exists():
-            self._debug_print("Downloading overview of all courses...")
+            self.__logger.info("Downloading overview of all courses...")
             all_courses_list = list_courses(
                 session=self.__moodle_session.session,
                 base_url=self.__moodle_session.settings.url,
@@ -62,7 +60,7 @@ class CourseAnalyzer:
             all_courses_dict = {course['id']: course for course in all_courses_list}
             self._save_json(file_path, all_courses_dict)
         else:
-            self._debug_print(
+            self.__logger.info(
                 f"Loading all courses from {file_path}. "
                 f"Last modified: {self._get_file_modification_time(file_path)}")
             all_courses_dict = self._load_json(file_path)
@@ -81,20 +79,20 @@ class CourseAnalyzer:
         if directory_path.exists():
             for file in directory_path.glob("*.json"):
                 if file.is_file():
-                    self._debug_print(
+                    self.__logger.debug(
                         f"Loading course from {file.name}. "
                         f"Last modified: {self._get_file_modification_time(file)}")
                     all_course_users[file.stem] = self._load_json(file)
 
-        self._debug_print(f"Number of all courses: {len(self.all_courses)}")
-        self._debug_print(f"Number of cached courses: {len(all_course_users)}")
+        self.__logger.info(f"Number of all courses: {len(self.all_courses)}")
+        self.__logger.info(f"Number of cached courses: {len(all_course_users)}")
 
         """ Download missing course_users """
         for course_id, course in self.all_courses.items():
             if course_id in all_course_users:
                 continue
 
-            self._debug_print(f"Downloading course {course_id}...")
+            self.__logger.debug(f"Downloading course {course_id}...")
             users = list_course_users(
                 session=self.__moodle_session.session,
                 base_url=self.__moodle_session.settings.url,
