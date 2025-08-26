@@ -1,3 +1,4 @@
+import csv
 import json
 import logging
 import sys
@@ -14,12 +15,14 @@ class CourseAnalyzer:
     """
 
     """
-    def __init__(self, courses_file=Path("courses.json"), courses_dir=Path("./course_users"), debug=False):
+    def __init__(self, courses_file=Path("courses.json"), courses_dir=Path("./course_users"), logging_level=logging.INFO):
         self.__moodle_session = MoodleSession.get()
         self.__logger = logging.getLogger(self.__class__.__name__)
-        logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
+        logging.basicConfig(level=logging_level)
 
-    def find_and_export_empty_courses_to_csv(self, excluded_supercategory_ids=None, csv_directory_path: Path = Path.cwd()) -> None:
+    def find_and_export_empty_courses_to_csv(self,
+                                             excluded_supercategory_ids=None,
+                                             csv_directory_path: Path = Path.cwd()) -> None:
         """
 
         :param excluded_supercategory_ids: List of supercatergory IDs which should be excluded
@@ -36,8 +39,7 @@ class CourseAnalyzer:
         courses_overview = self.__fetch_courses_overview()
 
         empty_courses_per_supercategory = self.__collect_empty_courses_by_supercategory(category_lookup, courses_overview, excluded_supercategory_ids)
-
-        # TODO: export to csv
+        self.__export_empty_courses_to_csv(csv_directory_path, empty_courses_per_supercategory)
 
     @staticmethod
     def __extract_supercategory(path: str) -> int | None:
@@ -168,7 +170,7 @@ class CourseAnalyzer:
             category_id = course_dict['categoryid']
             name = course_dict['fullname']
             if course_id == 1:
-                self.__logger.debug(f"Skipping {course_id}: {name}")
+                self.__logger.info(f"Skipping {course_id}: {name}")
                 continue
             supercategory_id = category_lookup[category_id]['supercategory']
             if supercategory_id in excluded_supercategory_ids:
@@ -207,3 +209,13 @@ class CourseAnalyzer:
             empty_courses_list.sort(key=lambda x: x['latest_timestamp_unix'])
 
         return empty_courses_per_supercategory
+
+    @staticmethod
+    def __export_empty_courses_to_csv(csv_directory_path: Path, empty_courses_per_supercategory: dict[str, list[dict]]) -> None:
+        for supercategory_name, empty_courses_list in empty_courses_per_supercategory.items():
+            fieldnames = list(empty_courses_list[0].keys())
+            file_path = csv_directory_path / f"{supercategory_name}.csv"
+            with open(file_path, 'w', newline='', encoding="utf-8") as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
+                writer.writeheader()
+                writer.writerows(empty_courses_list)
