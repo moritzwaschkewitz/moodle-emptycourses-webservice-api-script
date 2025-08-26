@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from pathlib import Path
 from datetime import datetime
 
@@ -104,6 +105,52 @@ class CourseAnalyzer:
             self._save_json(directory_path / f"{course_id}.json", users)
 
         return all_course_users
+
+    def find_and_export_empty_courses_to_csv(self, excluded_supercatergory_ids=None, csv_directory_path: Path = Path.cwd()) -> None:
+        """
+
+        :param excluded_supercatergory_ids: List of supercatergory IDs which should be excluded
+        :param csv_directory_path: Path to the directory where CSV files should be saved
+        :return:
+        """
+        if excluded_supercatergory_ids is None:
+            excluded_supercatergory_ids = []
+        category_lookup = self.__fetch_supercategory_lookup()
+
+        all_courses_dict = {}  # TODO remove caching
+
+        number_of_all_courses = len(all_courses_dict)
+
+        empty_courses = []
+
+        for i, (course_id, course_dict) in enumerate(all_courses_dict.items(), 1):
+            category_id = course_dict['categoryid']
+            name = course_dict['name']
+            if course_id == 1:
+                self.__logger.info(f"Skipping {course_id}: {category_id}")
+                continue
+            supercategory_id = category_lookup[category_id]['supercategory']
+            if supercategory_id in excluded_supercatergory_ids:
+                continue
+
+            # TODO: find empty courses
+
+            # TODO: sort by last timestamp
+
+            # TODO: add_readable_dates_to_courses
+            # TODO: add_url_to_courses
+
+            '''Progress Bar'''
+            bar_length = 50
+            filled_length = int(bar_length * i / number_of_all_courses)
+            bar = '█' * filled_length + '-' * (bar_length - filled_length)
+            sys.stdout.write(f'\rProgress: |{bar}| {i}/{number_of_all_courses}')
+            sys.stdout.flush()
+
+        #print("\nFertig!")
+        self.__logger.info(f"Finished {number_of_all_courses} courses.")  # TODO better description
+
+        # TODO: export to csv
 
     @staticmethod
     def __extract_supercategory(path: str) -> int | None:
