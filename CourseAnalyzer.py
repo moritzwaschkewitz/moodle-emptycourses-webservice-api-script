@@ -14,7 +14,7 @@ class CourseAnalyzer:
     """
 
     """
-    def __init__(self, courses_file=Path("courses.json"), courses_dir=Path("./course_users"), logging_level=logging.INFO):
+    def __init__(self, logging_level=logging.INFO):
         self.__moodle_session = MoodleSession.get()
         self.__logger = logging.getLogger(self.__class__.__name__)
         logging.basicConfig(level=logging_level)
