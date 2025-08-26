@@ -183,7 +183,7 @@ class CourseAnalyzer:
                 course_id=course_id,
             )
             if len(course_users) == 0:
-                supercategory_name = category_lookup[category_id]['name']
+                supercategory_name = category_lookup[supercategory_id]['name']
 
                 if supercategory_name not in empty_courses_per_supercategory:
                     empty_courses_per_supercategory[supercategory_name] = []
