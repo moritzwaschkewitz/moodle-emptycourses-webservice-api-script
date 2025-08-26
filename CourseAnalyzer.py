@@ -182,18 +182,20 @@ class CourseAnalyzer:
                 token=self.__moodle_session.token,
                 course_id=course_id,
             )
-            if len(course_users) == 0:
-                supercategory_name = category_lookup[supercategory_id]['name']
+            if len(course_users) > 0:
+                continue
 
-                if supercategory_name not in empty_courses_per_supercategory:
-                    empty_courses_per_supercategory[supercategory_name] = []
+            supercategory_name = category_lookup[supercategory_id]['name']
 
-                empty_courses_per_supercategory[supercategory_name].append({
-                    'id': course_id,
-                    'category': category_lookup[category_id]['name'],
-                    'url': f"https://moodle.hsnr.de/course/view.php?id={course_id}",
-                    **course_dict
-                })
+            if supercategory_name not in empty_courses_per_supercategory:
+                empty_courses_per_supercategory[supercategory_name] = []
+
+            empty_courses_per_supercategory[supercategory_name].append({
+                'id': course_id,
+                'category': category_lookup[category_id]['name'],
+                'url': f"https://moodle.hsnr.de/course/view.php?id={course_id}",
+                **course_dict
+            })
 
             '''Progress Bar'''
             bar_length = 50
