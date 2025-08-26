@@ -165,6 +165,7 @@ class CourseAnalyzer:
         """
         number_of_all_courses = len(courses_overview)
         empty_courses_per_supercategory = {}
+        empty_courses_counter = 0
 
         for i, (course_id, course_dict) in enumerate(courses_overview.items(), 1):
             category_id = course_dict['categoryid']
@@ -200,7 +201,7 @@ class CourseAnalyzer:
             filled_length = int(bar_length * i / number_of_all_courses)
             bar = '█' * filled_length + '-' * (bar_length - filled_length)
             sys.stdout.write(f"\rProgress: |{bar}| {i}/{number_of_all_courses}"
-                             f"\tFound empty courses: {len(empty_courses_per_supercategory)}")
+                             f"\tFound empty courses: {empty_courses_counter}")
             sys.stdout.flush()
 
         self.__logger.info(f"Finished {number_of_all_courses} courses.")  # TODO better description
