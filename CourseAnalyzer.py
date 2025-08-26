@@ -115,19 +115,21 @@ class CourseAnalyzer:
         """
         if excluded_supercatergory_ids is None:
             excluded_supercatergory_ids = []
+
+        self.__logger.info(f"Fetching category_lookup...")
         category_lookup = self.__fetch_supercategory_lookup()
 
-        all_courses_dict = {}  # TODO remove caching
+        self.__logger.info(f"Fetching courses_overview...")
+        courses_overview = self.__fetch_courses_overview()
 
-        number_of_all_courses = len(all_courses_dict)
-
+        number_of_all_courses = len(courses_overview)
         empty_courses = []
 
-        for i, (course_id, course_dict) in enumerate(all_courses_dict.items(), 1):
+        for i, (course_id, course_dict) in enumerate(courses_overview.items(), 1):
             category_id = course_dict['categoryid']
             name = course_dict['name']
             if course_id == 1:
-                self.__logger.info(f"Skipping {course_id}: {category_id}")
+                self.__logger.debug(f"Skipping {course_id}: {name}")
                 continue
             supercategory_id = category_lookup[category_id]['supercategory']
             if supercategory_id in excluded_supercatergory_ids:
@@ -204,3 +206,42 @@ class CourseAnalyzer:
                 category_lookup[category_id]['supercategory'] = supercategory_id
 
         return category_lookup
+
+    def __fetch_courses_overview(self) -> dict[int, dict]:
+        """
+            Retrieve an overview of all available Moodle courses and prepare
+            relevant metadata.
+
+            Each course is stored with its course-ID as the key and relevant metadata in an inner dictionary
+
+            Details of the inner dictionaries:
+
+            - **fullname** (str): Full name of the course.
+            - **shortname** (str): Short name of the course.
+            - **categoryid** (int): ID of the associated category.
+            - **latest_key** (str): Key of the most recent timestamp.
+            - **latest_timestamp_unix** (int): Most recent timestamp in Unix time.
+            - **latest_timestamp_human** (str): Most recent timestamp in YYYY-MM-DD HH:MM:SS.
+
+            :returns: Dictionary mapping course IDs to metadata.
+            """
+        all_courses_list = list_courses(
+            session=self.__moodle_session.session,
+            base_url=self.__moodle_session.settings.url,
+            token=self.__moodle_session.token
+        )
+        courses_overview = {}
+        for course in all_courses_list:
+            timestamp_keys_to_check = ["timecreated", "timemodified", "startdate"]
+            filtered_timestamp_dict = {k: course[k] for k in timestamp_keys_to_check}
+            latest_category, latest_timestamp = max(filtered_timestamp_dict.items(), key=lambda x: x[1])
+            courses_overview[course['id']] = {
+                'fullname': course['fullname'],
+                'shortname': course['shortname'],
+                'categoryid': course['categoryid'],
+                'latest_key': latest_category,  # TODO: may be removed
+                'latest_timestamp_unix': latest_timestamp,
+                'latest_timestamp_human': datetime.fromtimestamp(latest_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            }
+
+        return courses_overview
