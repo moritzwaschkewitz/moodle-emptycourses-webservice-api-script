@@ -40,8 +40,7 @@ class CourseAnalyzer:
         empty_courses_per_supercategory = self.__collect_empty_courses_by_supercategory(category_lookup, courses_overview, excluded_supercategory_ids)
         self.__export_empty_courses_to_csv(csv_directory_path, empty_courses_per_supercategory)
 
-    @staticmethod
-    def __extract_supercategory(path: str) -> int | None:
+    def __extract_supercategory(self, path: str) -> int | None:
         """
         :param path: The category path string, expected in the format
                         "supercategory_id/subcategory_id/...".
@@ -49,14 +48,11 @@ class CourseAnalyzer:
                     extracted; otherwise, None.
         """
         if not isinstance(path, str):
-            logging.warning(f"Path is not a string: {path}")
+            self.__logger.warning(f"Path is not a string: {path}")
             return None
         parts = path.split("/")
-        if not parts:
-            logging.warning(f"Path could not be split: {path}")
-            return None
-        if not parts[1].isdigit():
-            logging.warning(f"Supercategory is not a number: {path}")
+        if len(parts) < 2 or not parts[1].isdigit():
+            self.__logger.warning(f"Supercategory could not be extracted: {path}")
             return None
         return int(parts[1])
 
@@ -86,7 +82,7 @@ class CourseAnalyzer:
             if category['parent'] == 0:
                 category_lookup[category_id]['supercategory'] = category_id
             else:
-                supercategory_id = CourseAnalyzer.__extract_supercategory(category['path'])
+                supercategory_id = self.__extract_supercategory(category['path'])
                 if supercategory_id is None:
                     raise RuntimeError(f"Supercategory could not be found: {category['path']}")
                 category_lookup[category_id]['supercategory'] = supercategory_id
@@ -206,10 +202,13 @@ class CourseAnalyzer:
                              f"\tFound empty courses: {empty_courses_counter}")
             sys.stdout.flush()
 
-        self.__logger.info(f"Finished {number_of_all_courses} courses.")  # TODO better description
+        self.__logger.info(f"Finished processing {number_of_all_courses} courses.")
 
         for empty_courses_list in empty_courses_per_supercategory.values():
             empty_courses_list.sort(key=lambda x: x['latest_timestamp_unix'])
+            
+        self.__logger.info(f"Finished processing {number_of_all_courses} courses.\n"
+                           f"Found {empty_courses_counter} empty courses in {len(empty_courses_per_supercategory)} supercategories.")
 
         return empty_courses_per_supercategory
 
