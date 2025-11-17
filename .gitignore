@@ -1,3 +1,2 @@
 .env
-courses.json
-course_users/
+csv_exports/

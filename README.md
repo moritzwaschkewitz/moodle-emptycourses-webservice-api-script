@@ -1,276 +1,173 @@
-# Moodle Course User Manager (Proof of Concept)
+# 📚 Course Analyzer – Moodle Empty Course Scanner (CLI Tool)
 
-Dieses Projekt ist ein **Proof of Concept** zur Analyse von Moodle-Kursen und eingeschriebenen Nutzer:innen. <br>
-Es lädt Kursdaten und Nutzer:innen entweder aus einem lokalen Cache (JSON-Dateien) oder direkt über die Moodle-WebService-API. <br>
-:warning: **HINWEIS:** Der lokale Cache dient nur Entwicklungs- und Testzwecken und ist langfristig **nicht gewollt**.
+This CLI application analyzes courses in a Moodle instance using the py_moodle library. 
+It operates entirely from outside the Moodle server, communicating through Moodle’s official web service API. 
+Because the API requires one request per course, a full analysis of a moderately sized Moodle installation can take 30–45 minutes (or more, depending on the number of courses). 
+The tool identifies courses with no enrolled users, groups them by supercategory, and exports the results to CSV files for further analysis.
 
-## Inhalte
+- **Typer** for a clean and ergonomic CLI interface
+- **Seperation of concerns** ('CourseAnalyzer', 'MoodleClient', 'CSVExporter')
+- **Dependency injection*** for testability
+- **Extensible export system**
+
+-------------------------------------
+
+## Table of contents
 
 <!-- TOC -->
-* [Moodle Course User Manager (Proof of Concept)](#moodle-course-user-manager-proof-of-concept)
-  * [Inhalte](#inhalte)
-  * [Projektüberblick](#projektüberblick)
-  * [Installation & Vorraussetzungen](#installation--vorraussetzungen)
-  * [MoodleCourseUserManager-Klasse](#moodlecourseusermanager-klasse)
-    * [Attribute](#attribute)
-    * [Methoden](#methoden)
-    * [Caching Hinweise](#caching-hinweise)
-  * [Main-Skript (main.py)](#main-skript-mainpy)
-    * [Helferfunktionen](#helferfunktionen)
-    * [Beispiel-Ablauf](#beispiel-ablauf)
-    * [Export](#export)
-  * [Beispiel Datenstrukturen](#beispiel-datenstrukturen)
-    * [Kurse](#kurse)
-    * [Kursnutzer:innen](#kursnutzerinnen)
-    * [CSV-Export](#csv-export)
-  * [Diagramme](#diagramme)
-    * [Klassendiagramm](#klassendiagramm)
-    * [Datenflussdiagramm](#datenflussdiagramm)
-    * [Programmfluss](#programmfluss)
+* [📚 Course Analyzer – Moodle Empty Course Scanner (CLI Tool)](#-course-analyzer--moodle-empty-course-scanner-cli-tool)
+  * [Table of contents](#table-of-contents)
+  * [🚀 Features](#-features)
+  * [🛠️ Installation](#-installation)
+  * [🔐 Configuration – Moodle Credentials](#-configuration--moodle-credentials)
+    * [📌 Option 1: Temporary Environment Variables (Recommended)](#-option-1-temporary-environment-variables-recommended)
+      * [🐧 Linux & macOS (bash/zsh)](#-linux--macos-bashzsh)
+      * [🪟 Windows PowerShell](#-windows-powershell)
+      * [🪟 Windows CMD](#-windows-cmd)
+    * [📌 Option 2: Use a `.env` File](#-option-2-use-a-env-file)
+  * [▶️ Usage](#-usage)
+  * [📁 Output](#-output)
+  * [📄 License](#-license)
 <!-- TOC -->
 
-## Projektüberblick
-Dieses PoC ermöglicht:
-- Abruf aller Moodle-Kurse (per API und lokalem Cache).
-- Abruf aller Nutzer:innen pro Kurs.
-- Analyse leerer Kurse (ohne Nutzer:innen).
-- Sortierung nach Änderungsdatum.
-- Export von Kursinformationen als CSV.
+-------------------------------------
 
-## Installation & Vorraussetzungen
+## 🚀 Features
+- Scan all Moodle courses
+- Identify courses without enrolled students
+- Group empty courses by supercategory
+- Export results as CSV files, one per supercategory
+- Show progress with a console progress bar
+- Flexible CLI interface via Typer
+- Configurable logging levels
+- Optional inclusion/exclusion of categories
+
+-------------------------------------
+
+## 🛠️ Installation
+Requires **Python 3-10+**.
 
 ```bash
-git clone https://git.ide3.de/moritzwaschkewitz/moodlecourseusermanager.git
-cd moodlecourseusermanager
-
-pip install python-moodle
+git clone https://github.com/moritzwaschkewitz/moodle-emptycourses-webservice-api-script.git
+cd course-analyzer
+pip install -r requirements.txt
 ```
+
+
+-------------------------------------
+
+## 🔐 Configuration – Moodle Credentials
 
 > [!important]
-> Benötigt wird eine funktionierende MoodleSession (via `py_moodle`): [siehe python-moodle-GitHub](https://github.com/erseco/python-moodle?tab=readme-ov-file#configure-your-environment)
+> Requires a functional MoodleSession (via `py_moodle`): [see python-moodle-GitHub](https://github.com/erseco/python-moodle?tab=readme-ov-file#configure-your-environment)
 
-## MoodleCourseUserManager-Klasse
+To authenticate against your Moodle instance, the CLI tool requires **three environment variables**:
 
-### Attribute
-- `self.all_courses: dict[str, dict]` <br>
-Übersicht aller Kurse (Key: Kurs-ID, Value: Kurs-Details)
-- `self.all_course_users: dict[str, list]` <br>
-Übersicht aller Nutzinnen pro Kurs (Key: Kurs-ID, Value: Liste von User-Objekten)
+| Variable              | Description                                                                  |
+|-----------------------|------------------------------------------------------------------------------|
+| MOODLE_LOCAL_URL      | Base domain of your Moodle installation (e.g., `https://moodle.example.edu`) |
+| MOODLE_LOCAL_USERNAME | Moodle username used for API login                                           |
+| MOODLE_LOCAL_PASSWORD | Moodle password for the user                                                 |
 
-### Methoden
-- `get_all_courses() -> dict[str, dict]` / `get_all_course_users() -> dict[str, list]` - Getter für Attribute
-- `_save_json(file_path, data)` / `_load_json(file_path)` - Hilfsmethoden für Caching
-- `_debug_print(self, *args, **kwargs)` - Logging (nur print(...), ohne logging-Bibliothek)
+These environment variables must be set in your current shell session or loaded from a `.env` file before running the CLI.
 
-Hilfmethoden des Konstruktors um Attribute zu laden:
-- `__fetch_courses_with_cache(file_path) -> dict[str, dict]` - Lädt Kurse aus Cache oder Moodle
-- `__fetch_course_users_with_cache(directory_path) -> dict[str, list]` - Lädt Nutzer:innen aus Cache oder Moodle
+-------------------------------------
 
-### Caching Hinweise
-> [!note]
-> Während der Entwicklung werden Daten **lokal in JSON-Dateien gespeichert.**
-> Produktivbetrieb sollte direkt über die Moodle-API laufen und **nicht benötigte Daten direkt verwerfen.**
+### 📌 Option 1: Temporary Environment Variables (Recommended)
 
-## Main-Skript (main.py)
-
-### Helferfunktionen
-- `find_empty_courses(course_users, all_courses)` - leere Kurse finden.
-- `sort_courses_by_timemodified(courses)` - sortiert Kurse nach Änderungsdatum.
-- `add_readable_dates_to_courses(courses)` - fügt lesbare Zeitstempel hinzu (`%Y-%m-%d %H:%M:%S`).
-- `add_url_to_courses(courses, base_url)` - ergänzt Moodle-URLs.
-- `export_courses_to_csv(courses, file_path, fieldnames)` - CSV-Export
-- `collect_categoryids(courses)` - TODO: bestimmte Kursbereiche ausschließen
-
-### Beispiel-Ablauf
-1. Kursdaten und Nutzer:innen laden (`MoodleCourseUserManager`-Konstruktor)
-2. Leere Kurse identifizieren
-3. Sortieren und anreichern (Datum, URL)
-4. Export nach CSV
-
-### Export
-Leere Kurse werden nach CSV exportiert mit Spalten: <br>
-`id, fullname, shortname, startdate, startdate_human, timecreated, timecreated_human, timemodified, timemodified_human, url`
-
-## Beispiel Datenstrukturen
-### Kurse
-```json
-{
-  "42": {
-    "id": 42,
-    "shortname": "XY",
-    "categoryid": 123,
-    "categorysortorder": 1234567,
-    "fullname": "Modul XY",
-    "displayname": "Modul XY",
-    "idnumber": "",
-    "summary": "",
-    "summaryformat": 1,
-    "format": "topics",
-    "showgrades": 1,
-    "newsitems": 3,
-    "startdate": 1735729200,
-    "enddate": 0,
-    "numsections": 10,
-    "maxbytes": 262144000,
-    "showreports": 0,
-    "visible": 1,
-    "hiddensections": 0,
-    "groupmode": 0,
-    "groupmodeforce": 0,
-    "defaultgroupingid": 0,
-    "timecreated": 1735729200,
-    "timemodified": 1735729200,
-    "enablecompletion": 0,
-    "completionnotify": 0,
-    "lang": "",
-    "forcetheme": "",
-    "courseformatoptions": [
-      {
-        "name": "hiddensections",
-        "value": 0
-      },
-      {
-        "name": "coursedisplay",
-        "value": 0
-      }
-    ],
-    "showactivitydates": false,
-    "showcompletionconditions": null
-  }
-}
+#### 🐧 Linux & macOS (bash/zsh)
+```bash
+export MOODLE_DOMAIN="https://moodle.example.edu"
+export MOODLE_USERNAME="your-username"
+export MOODLE_PASSWORD="your-password"
 ```
 
-### Kursnutzer:innen
-```json
-{
-  "42": [
-      {
-        "id": 1234,
-        "username": "mowas002",
-        "firstname": "Moritz",
-        "lastname": "Waschkewitz",
-        "fullname": "Moritz Waschkewitz",
-        "email": "moritz.waschkewitz@stud.hn.de",
-        "department": "",
-        "firstaccess": 1735729200,
-        "lastaccess": 1735729200,
-        "lastcourseaccess": 1735729200,
-        "profileimageurlsmall": "https://moodle.hsnr.de/theme/image.php/boost_union/core/1755177765/u/f2",
-        "profileimageurl": "https://moodle.hsnr.de/theme/image.php/boost_union/core/1755177765/u/f1",
-        "roles": [
-          {
-            "roleid": 11,
-            "name": "LAssistenz",
-            "shortname": "lehrpersonassistenz",
-            "sortorder": 0
-          }
-        ],
-        "enrolledcourses": [
-          {
-            "id": 42,
-            "fullname": "Modul XY",
-            "shortname": "XY"
-          },
-          {
-            "id": 43,
-            "fullname": "Modul XY- Tutorium",
-            "shortname": "XY-TUT"
-          }
-        ]
-      },
-      {
-        "id": 5678,
-        "username": "mustu001",
-        "firstname": "Muster",
-        "lastname": "Student",
-        "fullname": "Muster Student",
-        "email": "muster.student@stud.hn.de",
-        "department": "",
-        "firstaccess": 1735729200,
-        "lastaccess": 1735729200,
-        "lastcourseaccess": 1735729200,
-        "profileimageurlsmall": "https://moodle.hsnr.de/theme/image.php/boost_union/core/1755177765/u/f2",
-        "profileimageurl": "https://moodle.hsnr.de/theme/image.php/boost_union/core/1755177765/u/f1",
-        "roles": [
-          {
-            "roleid": 16,
-            "name": "Studierende",
-            "shortname": "student",
-            "sortorder": 0
-          }
-        ],
-        "enrolledcourses": [
-          {
-            "id": 42,
-            "fullname": "Modul XY",
-            "shortname": "XY"
-          },
-          {
-            "id": 44,
-            "fullname": "Modul ABC",
-            "shortname": "ABC"
-          }
-        ]
-      }
-  ]
-}
+#### 🪟 Windows PowerShell
+```powershell
+$env:MOODLE_PROD_URL = "https://moodle.example.edu"
+$env:MOODLE_PROD_USERNAME = "your-username"
+$env:MOODLE_PROD_PASSWORD = "your-password"
 ```
 
-### CSV-Export
-```csv
-id,fullname,shortname,startdate,startdate_human,timecreated,timecreated_human,timemodified,timemodified_human,url
-45,Modul DEF,DEF,1735729200,2025-01-01 12:00:00,1735729200,2025-01-01 12:00:00,1713250000,2025-01-01 12:00:00,https://moodle.hsnr.de/course/view.php?id=45
+#### 🪟 Windows CMD
+```cmd
+set MOODLE_DOMAIN=https://moodle.example.edu
+set MOODLE_USERNAME=your-username
+set MOODLE_PASSWORD=your-password
 ```
 
-## Diagramme
-### Klassendiagramm
-```mermaid
-classDiagram
-    class MoodleCourseUserManager {
-        - __moodle_session : MoodleSession
-        - __debug : bool
-        + all_courses : dict[str, dict]
-        + all_course_users : dict[str, list]
-        + get_all_courses() dict[str, dict]
-        + get_all_course_users() dict[str, list]
-        - _debug_print()
-        - __fetch_courses_with_cache(file_path: Path) dict[str, dict]
-        - __fetch_course_users_with_cache(dir_path: Path) dict[str, list]
-    }
+-------------------------------------
 
-    MoodleSession <.. MoodleCourseUserManager : uses
+### 📌 Option 2: Use a `.env` File
+
+[see python-moodle-GitHub](https://github.com/erseco/python-moodle?tab=readme-ov-file#configure-your-environment)
+
+> [!note]  
+> This implementation of python-moodle uses the default LOCAL variants fo the environment variables.
+> [See 🔐 Configuration – Moodle Credentials](#-configuration--moodle-credentials)
+
+-------------------------------------
+
+## ▶️ Usage
+
+Run the CLI command
+
+```bash
+python cli.py
 ```
 
-### Datenflussdiagramm
-```mermaid
-flowchart TD
-    A[Moodle API] -->|list_courses| B[MoodleCourseUserManager]
-    A[Moodle API] -->|list_course_users| B[MoodleCourseUserManager]
+Or with optional parameters
 
-    B -->|all_courses| C[main.py]
-    B -->|all_course_users| C[main.py]
-
-    C --> D["Analyse: find_empty_courses()"]
-    D --> E["Sortieren: sort_courses_by_timemodified()"]
-    E --> F["Metadaten: add_readable_dates_to_courses(), add_url_to_courses()"]
-
-    F --> G[Export CSV]
+```bash
+python cli.py [OPTIONS]
 ```
 
-### Programmfluss
-```mermaid
-sequenceDiagram
-    participant main
-    participant Manager as MoodleCourseUserManager
-    participant File as JSON_Cache
-    participant Moodle as Moodle_API
-
-    main->>Manager: __init
-    Manager->>File: Cache lesen - courses.json & course_users/*.json
-    File-->>Manager: 
-    Manager->>Moodle: fehlende Kurse und Nutzer_innen laden
-    Moodle-->>Manager: 
-    Manager->>File: neue Kurse und Nutzer_innen speichern
-    Manager-->>main: all_courses, all_course_users
-    main->>main: Analyse (leer, sortieren, URLs, CSV-Export)
+**Examples**
+- Display help
+```bash
+python cli.py --help
 ```
+
+- Export empty courses to a specific folder:
+```bash
+python cli.py --csv-dir ./exports
+```
+
+- Exclude multiple supercategories:
+```bash
+python cli.py --exclude-supercategory 10 --exclude-supercategory 42
+```
+
+- Consider courses with (at most) 2 users as empty
+```bash
+python cli.py --min-users 2
+```
+
+-------------------------------------
+
+## 📁 Output
+```
+exports/
+ ├── Mathematics.csv
+ ├── ComputerScience.csv
+ ├── Humanities.csv
+```
+
+Each CSV contains:
+
+| Column                 | Description                           |
+|------------------------|---------------------------------------|
+| id                     | Course ID                             |
+| fullname               | Full course name                      |
+| shortname              | Short course name                     |
+| category               | Name of the parent category           |
+| categoryid             | Category ID                           |
+| latest_timestamp_unix  | Most recent activity (UNIX timestamp) |
+| latest_timestamp_human | Most recent activity (human readable) |
+| url                    | Direct link to the Moodle course      |
+
+-------------------------------------
+
+## 📄 License
+
+MIT License – free to use, modify, and distribute.

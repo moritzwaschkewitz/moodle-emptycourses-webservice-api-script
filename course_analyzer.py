@@ -1,44 +1,26 @@
 import csv
 import logging
+import os
 import sys
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
-from py_moodle import MoodleSession
-from py_moodle.category import list_categories
-from py_moodle.course import list_courses
-from py_moodle.user import list_course_users
+from exporters import CsvExporter
+from moodle_client import MoodleClient
 
 
 class CourseAnalyzer:
     """
-
+    Analyzes Moodle courses and exports empty ones grouped by supercategory.
     """
-    def __init__(self, logging_level=logging.INFO):
-        self.__moodle_session = MoodleSession.get()
-        self.__logger = logging.getLogger(self.__class__.__name__)
-        logging.basicConfig(level=logging_level)
-
-    def find_and_export_empty_courses_to_csv(self,
-                                             excluded_supercategory_ids=None,
-                                             csv_directory_path: Path = Path.cwd()) -> None:
-        """
-
-        :param excluded_supercategory_ids: List of supercatergory IDs which should be excluded
-        :param csv_directory_path: Path to the directory where CSV files should be saved
-        :return:
-        """
-        if excluded_supercategory_ids is None:
-            excluded_supercategory_ids = []
-
-        self.__logger.info(f"Fetching category_lookup...")
-        category_lookup = self.__fetch_supercategory_lookup()
-
-        self.__logger.info(f"Fetching courses_overview...")
-        courses_overview = self.__fetch_courses_overview()
-
-        empty_courses_per_supercategory = self.__collect_empty_courses_by_supercategory(category_lookup, courses_overview, excluded_supercategory_ids)
-        self.__export_empty_courses_to_csv(csv_directory_path, empty_courses_per_supercategory)
+    def __init__(self, client: Optional[MoodleClient] = None, logger: Optional[logging.Logger] = None):
+        self.__client = client or MoodleClient()
+        if logger:
+            self.__logger = logger
+        else:
+            self.__logger = logging.getLogger(self.__class__.__name__)
+            logging.basicConfig(level=logging.INFO)
 
     def __extract_supercategory(self, path: str) -> int | None:
         """
@@ -68,13 +50,8 @@ class CourseAnalyzer:
                     and the value is another dictionary containing the `name` and `supercategory` ID.
         :raises RuntimeError: If a supercategory cannot be determined from the path string
         """
-        all_categories = list_categories(
-            session=self.__moodle_session.session,
-            base_url=self.__moodle_session.settings.url,
-            token=self.__moodle_session.token
-        )
-
-        category_lookup = {}
+        all_categories = self.__client.categories()
+        category_lookup: dict[int, dict] = {}
 
         for category in all_categories:
             category_id = category['id']
@@ -94,6 +71,8 @@ class CourseAnalyzer:
             Retrieve an overview of all available Moodle courses and prepare
             relevant metadata.
 
+            This method controls which metadata is kept from the webservice request.
+
             Each course is stored with its course-ID as the key and relevant metadata in an inner dictionary
 
             Details of the inner dictionaries:
@@ -107,12 +86,8 @@ class CourseAnalyzer:
 
             :returns: Dictionary mapping course IDs to metadata.
             """
-        all_courses_list = list_courses(
-            session=self.__moodle_session.session,
-            base_url=self.__moodle_session.settings.url,
-            token=self.__moodle_session.token
-        )
-        courses_overview = {}
+        all_courses_list = self.__client.courses()
+        courses_overview: dict[int, dict] = {}
         for course in all_courses_list:
             timestamp_keys_to_check = ['timecreated', 'timemodified', 'startdate']
             filtered_timestamp_dict = {k: course[k] for k in timestamp_keys_to_check}
@@ -121,18 +96,20 @@ class CourseAnalyzer:
                 'fullname': course['fullname'],
                 'shortname': course['shortname'],
                 'categoryid': course['categoryid'],
-                'latest_key': latest_category,  # TODO: may be removed
                 'latest_timestamp_unix': latest_timestamp,
                 'latest_timestamp_human': datetime.fromtimestamp(latest_timestamp).strftime('%Y-%m-%d %H:%M:%S')
             }
 
         return courses_overview
 
-    def __collect_empty_courses_by_supercategory(self,
-                                                 category_lookup: dict[int, dict],
-                                                 courses_overview: dict[int, dict],
-                                                 excluded_supercategory_ids: list[int]) \
-            -> dict[str, list[dict]]:
+    def __collect_empty_courses_by_supercategory(
+            self,
+            category_lookup: dict[int, dict],
+            courses_overview: dict[int, dict],
+            excluded_supercategory_ids: list[int],
+            min_users: int = 0,
+            show_progress: bool = True,
+            ) -> dict[str, list[dict]]:
         """
             Collects all courses with no enrolled users, grouped by their faculty/supercategory.
 
@@ -157,6 +134,8 @@ class CourseAnalyzer:
             :param category_lookup: result of self.__fetch_supercategory_lookup.
             :param courses_overview: result of self.__fetch_courses_overview.
             :param excluded_supercategory_ids: list of supercategory IDs to exclude.
+            :param min_users: minimum number of users to include a course as "empty". Default is 0.
+            :param show_progress: show progress bar during execution. Default is True.
         """
         number_of_all_courses = len(courses_overview)
         empty_courses_per_supercategory = {}
@@ -165,20 +144,18 @@ class CourseAnalyzer:
         for i, (course_id, course_dict) in enumerate(courses_overview.items(), 1):
             category_id = course_dict['categoryid']
             name = course_dict['fullname']
+
+            # TODO: progress bar only gets updated once an empty course is found, since the loop is continued beforehand
+
             if course_id == 1:
-                self.__logger.info(f"Skipping {course_id}: {name}")
+                self.__logger.debug(f"Skipping front page id={course_id}: {name}")
                 continue
             supercategory_id = category_lookup[category_id]['supercategory']
             if supercategory_id in excluded_supercategory_ids:
                 continue
 
-            course_users = list_course_users(
-                session=self.__moodle_session.session,
-                base_url=self.__moodle_session.settings.url,
-                token=self.__moodle_session.token,
-                course_id=course_id,
-            )
-            if len(course_users) > 0:
+            course_users = self.__client.course_users(course_id)
+            if len(course_users) > min_users:
                 continue
 
             empty_courses_counter += 1
@@ -190,27 +167,51 @@ class CourseAnalyzer:
             empty_courses_per_supercategory[supercategory_name].append({
                 'id': course_id,
                 'category': category_lookup[category_id]['name'],
-                'url': f"https://moodle.hsnr.de/course/view.php?id={course_id}",
+                'url': f"{os.environ['MOODLE_LOCAL_URL']}/course/view.php?id={course_id}",
                 **course_dict
             })
 
-            '''Progress Bar'''
-            bar_length = 50
-            filled_length = int(bar_length * i / number_of_all_courses)
-            bar = '█' * filled_length + '-' * (bar_length - filled_length)
-            sys.stdout.write(f"\rProgress: |{bar}| {i}/{number_of_all_courses}"
-                             f"\tFound empty courses: {empty_courses_counter}")
-            sys.stdout.flush()
-
-        self.__logger.info(f"Finished processing {number_of_all_courses} courses.")
+            if show_progress:
+                bar_length = 50
+                filled_length = int(bar_length * i / number_of_all_courses)
+                bar = '█' * filled_length + '-' * (bar_length - filled_length)
+                sys.stdout.write(f"\rProgress: |{bar}| {i}/{number_of_all_courses}"
+                                 f"\tFound empty courses: {empty_courses_counter}")
+                sys.stdout.flush()
 
         for empty_courses_list in empty_courses_per_supercategory.values():
             empty_courses_list.sort(key=lambda x: x['latest_timestamp_unix'])
-            
+
         self.__logger.info(f"Finished processing {number_of_all_courses} courses.\n"
                            f"Found {empty_courses_counter} empty courses in {len(empty_courses_per_supercategory)} supercategories.")
 
         return empty_courses_per_supercategory
+
+    def find_and_export_empty_courses(
+        self,
+        excluded_supercategory_ids: Optional[list[int]] = None,
+        csv_directory_path: Path = Path.cwd(),
+        exporter: Optional[CsvExporter] = CsvExporter(),
+        min_users: int = 0,
+        show_progress: bool = True
+    ) -> None:
+        excluded_supercategory_ids = excluded_supercategory_ids or []
+
+        self.__logger.info("Fetching categories...")
+        category_lookup = self.__fetch_supercategory_lookup()
+
+        self.__logger.info("Fetching courses...")
+        courses_overview = self.__fetch_courses_overview()
+
+        empty_courses_per_supercategory = self.__collect_empty_courses_by_supercategory(
+            category_lookup,
+            courses_overview,
+            excluded_supercategory_ids,
+            min_users,
+            show_progress,
+        )
+
+        exporter.export(csv_directory_path, empty_courses_per_supercategory)
 
     @staticmethod
     def __export_empty_courses_to_csv(csv_directory_path: Path, empty_courses_per_supercategory: dict[str, list[dict]]) -> None:
@@ -223,3 +224,23 @@ class CourseAnalyzer:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction='ignore')
                 writer.writeheader()
                 writer.writerows(empty_courses_list)
+
+    def find_and_export_empty_courses_to_csv(self,
+                                             excluded_supercategory_ids=None,
+                                             csv_directory_path: Path = Path.cwd() / 'csv_exports') -> None:
+        """
+        :param excluded_supercategory_ids: List of supercatergory IDs which should be excluded
+        :param csv_directory_path: Path to the directory where CSV files should be saved
+        :return:
+        """
+        if excluded_supercategory_ids is None:
+            excluded_supercategory_ids = []
+
+        self.__logger.info(f"Fetching category_lookup...")
+        category_lookup = self.__fetch_supercategory_lookup()
+
+        self.__logger.info(f"Fetching courses_overview...")
+        courses_overview = self.__fetch_courses_overview()
+
+        empty_courses_per_supercategory = self.__collect_empty_courses_by_supercategory(category_lookup, courses_overview, excluded_supercategory_ids)
+        self.__export_empty_courses_to_csv(csv_directory_path, empty_courses_per_supercategory)
