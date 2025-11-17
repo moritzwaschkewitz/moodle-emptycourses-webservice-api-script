@@ -7,7 +7,7 @@ The tool identifies courses with no enrolled users, groups them by supercategory
 
 - **Typer** for a clean and ergonomic CLI interface
 - **Seperation of concerns** ('CourseAnalyzer', 'MoodleClient', 'CSVExporter')
-- **Dependency injection*** for testability
+- **Dependency injection** for testability
 - **Extensible export system**
 
 -------------------------------------
