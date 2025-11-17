@@ -48,7 +48,7 @@ The tool identifies courses with no enrolled users, groups them by supercategory
 Requires **Python 3-10+**.
 
 ```bash
-git clone https://github.com/moritzwaschkewitz/moodle-emptycourses-webservice-api-script.git
+git clone https://github.com/moritzwaschkewitz/moodle-emptycourses-webservice-api-script.git course-analyzer
 cd course-analyzer
 pip install -r requirements.txt
 ```
