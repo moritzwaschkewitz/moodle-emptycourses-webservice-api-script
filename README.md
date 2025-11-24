@@ -1,4 +1,4 @@
-# 📚 Course Analyzer – Moodle Empty Course Scanner (CLI Tool)
+# 📚 Moodle Empty Course Scanner (CLI Tool)
 
 This CLI application analyzes courses in a Moodle instance using the py_moodle library. 
 It operates entirely from outside the Moodle server, communicating through Moodle’s official web service API. 
@@ -15,7 +15,7 @@ The tool identifies courses with no enrolled users, groups them by supercategory
 ## Table of contents
 
 <!-- TOC -->
-* [📚 Course Analyzer – Moodle Empty Course Scanner (CLI Tool)](#-course-analyzer--moodle-empty-course-scanner-cli-tool)
+* [📚 Moodle Empty Course Scanner (CLI Tool)](#-moodle-empty-course-scanner-cli-tool)
   * [Table of contents](#table-of-contents)
   * [🚀 Features](#-features)
   * [🛠️ Installation](#-installation)
