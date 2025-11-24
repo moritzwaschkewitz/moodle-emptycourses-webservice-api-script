@@ -77,23 +77,23 @@ These environment variables must be set in your current shell session or loaded 
 
 #### 🐧 Linux & macOS (bash/zsh)
 ```bash
-export MOODLE_DOMAIN="https://moodle.example.edu"
-export MOODLE_USERNAME="your-username"
-export MOODLE_PASSWORD="your-password"
+export MOODLE_LOCAL_URL="https://moodle.example.edu"
+export MOODLE_LOCAL_USERNAME="your-username"
+export MOODLE_LOCAL_PASSWORD="your-password"
 ```
 
 #### 🪟 Windows PowerShell
 ```powershell
-$env:MOODLE_PROD_URL = "https://moodle.example.edu"
-$env:MOODLE_PROD_USERNAME = "your-username"
-$env:MOODLE_PROD_PASSWORD = "your-password"
+$env:MOODLE_LOCAL_URL = "https://moodle.example.edu"
+$env:MOODLE_LOCAL_USERNAME = "your-username"
+$env:MOODLE_LOCAL_PASSWORD = "your-password"
 ```
 
 #### 🪟 Windows CMD
 ```cmd
-set MOODLE_DOMAIN=https://moodle.example.edu
-set MOODLE_USERNAME=your-username
-set MOODLE_PASSWORD=your-password
+set MOODLE_LOCAL_URL=https://moodle.example.edu
+set MOODLE_LOCAL_USERNAME=your-username
+set MOODLE_LOCAL_PASSWORD=your-password
 ```
 
 -------------------------------------
